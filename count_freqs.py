@@ -55,6 +55,8 @@ def sentence_iterator(corpus_iterator):
     if current_sentence: # If the last line was blank, we're done
         yield current_sentence  #Otherwise when there is no more token
                                 # in the stream return the last sentence.
+    # the purpose of this if statement is process the last sentence. One case, last sentence doesn't end with blank.
+    # each yields content [(word, tag), (word, tag), (word, tag)]
 
 def get_ngrams(sent_iterator, n):
     """
@@ -65,14 +67,16 @@ def get_ngrams(sent_iterator, n):
     """
     for sent in sent_iterator:
          #Add boundary symbols to the sentence
-         w_boundary = (n-1) * [(None, "*")]
+         w_boundary = (n-1) * [(None, "*")] # for appending at the beginning.
          w_boundary.extend(sent)
-         w_boundary.append((None, "STOP"))
+         w_boundary.append((None, "STOP")) # for appending at the end of the iterable.
          #Then extract n-grams
-         ngrams = (tuple(w_boundary[i:i+n]) for i in xrange(len(w_boundary)-n+1))
+         ngrams = (tuple(w_boundary[i:i+n]) for i in xrange(len(w_boundary)-n+1))  # how to interpret this list comprehension.
+         # ngrams is already a generator, how still loop through it? or ngrams is just generated using generator?
          for n_gram in ngrams: #Return one n-gram at a time
             yield n_gram        
 
+    # each sent yields [(word, tag), (word, tag), (word, tag)], the result is a tuple.
 
 class Hmm(object):
     """
@@ -84,6 +88,7 @@ class Hmm(object):
         self.n = n
         self.emission_counts = defaultdict(int)
         self.ngram_counts = [defaultdict(int) for i in xrange(self.n)]
+        # use list comprehension to generate list of certain data structure.
         self.all_states = set()
 
     def train(self, corpus_file):
@@ -97,13 +102,15 @@ class Hmm(object):
             #Sanity check: n-gram we get from the corpus stream needs to have the right length
             assert len(ngram) == self.n, "ngram in stream is %i, expected %i" % (len(ngram, self.n))
 
-            tagsonly = tuple([ne_tag for word, ne_tag in ngram]) #retrieve only the tags            
+            # "for word, ne_tag in ngram", use iteration grammar to unpack each object in a ngram object.
+            tagsonly = tuple([ne_tag for word, ne_tag in ngram]) #retrieve only the tags
             for i in xrange(2, self.n+1): #Count NE-tag 2-grams..n-grams
-                self.ngram_counts[i-1][tagsonly[-i:]] += 1
-            
+                self.ngram_counts[i-1][tagsonly[-i:]] += 1     # count the frequency of different n-gram tags.
+
+            # don't have to use .end to refer to the end of a list.
             if ngram[-1][0] is not None: # If this is not the last word in a sentence
                 self.ngram_counts[0][tagsonly[-1:]] += 1 # count 1-gram
-                self.emission_counts[ngram[-1]] += 1 # and emission frequencies
+                self.emission_counts[ngram[-1]] += 1 # and emission counts.
 
             # Need to count a single n-1-gram of sentence start symbols per sentence
             if ngram[-2][0] is None: # this is the first n-gram in a sentence
